@@ -79,11 +79,34 @@ Book Collection Helper
 
 Commands:
   list     - Show all books
-  add      - Add a new book
+  add      - Add a new book (interactive or pass --title, --author, --year, --read)
   remove   - Remove a book by title
   find     - Find books by author
   help     - Show this help message
 `);
+}
+
+function parseOptions(args) {
+  // Simple parsing for --key=value and --flag
+  const opts = {};
+  args.forEach((arg) => {
+    if (!arg.startsWith("--")) return;
+    const eqIndex = arg.indexOf("=");
+    if (eqIndex === -1) {
+      // flag like --read
+      const key = arg.slice(2);
+      opts[key] = true;
+    } else {
+      const key = arg.slice(2, eqIndex);
+      let val = arg.slice(eqIndex + 1);
+      // strip surrounding quotes if any
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      opts[key] = val;
+    }
+  });
+  return opts;
 }
 
 async function main() {
@@ -100,9 +123,25 @@ async function main() {
     case "list":
       handleList();
       break;
-    case "add":
-      await handleAdd();
+    case "add": {
+      const options = parseOptions(args.slice(1));
+      // If title and author are provided via flags, do a non-interactive add
+      if (options.title && options.author) {
+        const year = options.year ? parseInt(options.year, 10) : 0;
+        if (options.year && isNaN(year)) {
+          console.log("Error: --year must be a number.\n");
+          break;
+        }
+        collection.addBook(options.title, options.author, year);
+        if (options.read) {
+          collection.markAsRead(options.title);
+        }
+        console.log("\nBook added successfully.\n");
+      } else {
+        await handleAdd();
+      }
       break;
+    }
     case "remove":
       await handleRemove();
       break;
